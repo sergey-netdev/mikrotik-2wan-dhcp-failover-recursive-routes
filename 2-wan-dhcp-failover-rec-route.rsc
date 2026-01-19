@@ -1,15 +1,23 @@
-# Enable logs by adding 'script' topic in System -> Logging
+# !!! PREREQUISITES !!! Assuming your Mikrotik has the default configuration:
+# [OPTIONAL] Choose your WAN1 and WAN2 interfaces, update the following variables, if needed:
 :local wan1IntName "ether1";  #WAN1 interface name
 :local wan2IntName "ether2";  #WAN2 interface name
 
+# [REQUIRED] Mikrotik has "WAN" interface list by default, make sure both of your chosen WANs are added, and the default SRCNAT exists in IP -> Firewall -> NAT for the list.
+# [REQUIRED] Create DHCP clients for both interfaces manually and test if they get the gateway IPs
+# [REQUIRED] Enable logs by adding 'script' and 'dhcp' topics in System -> Logging
+
+# [OPTIONAL] Update the monitoring IPs. They MUST BE DIFFERENT. For example, 8.8.8.8 for WAN1 and 8.8.4.4 WAN2
+:local wan1MonIp "8.8.8.8"; #WAN1 monitoring IP
+:local wan2MonIp "8.8.4.4"; #WAN2 monitoring IP
+
+# [OPTIONAL] Update other parameters
 :local wan1MonRouteComment "wan1 monitoring";  #WAN1 interface monitoring route label
 :local wan2MonRouteComment "wan2 monitoring";  #WAN2 interface monitoring route label
-
 :local wan1DefRouteDistance 1;    #WAN1 interface default route distance (primary)
 :local wan2DefRouteDistance 4;    #WAN2 interface default route distance (secondary)
 
-:local wan1MonIp "8.8.8.8"; #WAN1 monitoring IP
-:local wan2MonIp "8.8.4.4"; #WAN2 monitoring IP
+# Run the script, check the logs for possible errors.
 
 #--- WAN1 DHCP script start
 :local wan1DhcpScript ":if (\$bound = 1) do={"
@@ -51,17 +59,23 @@
 /ip route remove ([/ip route find comment~("^" . $wan2MonRouteComment)])
 
 :log info ("PVZ: Adding monitoring routes with comments '" . $wan1MonRouteComment. "' and '" .$wan2MonRouteComment. "' to '". $wan1MonIp. "' and '". $wan2MonIp. "'...")
+# No need to specify gateway in the routes, it will be replaced with the proper IP by the DHCP scripts
 /ip route 
-#gateway=0.0.0.0 is OK, it will be replaced by the proper IP by the DHCP script above
-add dst-address=$wan1MonIp comment=$wan1MonRouteComment scope=10 gateway=0.0.0.0 
-add dst-address=$wan2MonIp comment=$wan2MonRouteComment scope=10 gateway=0.0.0.0
+add dst-address=$wan1MonIp comment=$wan1MonRouteComment scope=10
+add dst-address=$wan2MonIp comment=$wan2MonRouteComment scope=10
 
+# Now we have the monitoring routes and need to force trigger the DHCP client scripts
 :log info ("PVZ: Re-enabling DHCP clients to trigger the scripts...")
-/ip dhcp-client disable $wan1DhcpId
-/ip dhcp-client enable $wan1DhcpId
-/ip dhcp-client disable $wan2DhcpId
-/ip dhcp-client enable $wan2DhcpId
- 
+:foreach dhcpId in=($wan1DhcpId, $wan2DhcpId) do={
+    /ip dhcp-client disable $dhcpId
+    /ip dhcp-client enable $dhcpId
+}
 
+:log info ("PVZ: Adding default recursive routes...")
+/ip/route/
+add distance=$wan1DefRouteDistance gateway=$wan1MonIp target-scope=11 check-gateway=ping comment=("WAN1 via ". $wan1MonIp)
+add distance=$wan2DefRouteDistance gateway=$wan2MonIp target-scope=11 check-gateway=ping comment=("WAN2 via ". $wan2MonIp)
+
+:log info "PVZ: All done!"
 :log warning "PVZ: don't forget to add the interfaces to 'WAN' interface list and check the list is added to SRCNAT."
 
