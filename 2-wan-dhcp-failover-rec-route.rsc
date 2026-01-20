@@ -5,7 +5,7 @@
 
 # [REQUIRED] Mikrotik has "WAN" interface list by default, make sure both of your chosen WANs are added, and the default SRCNAT exists in IP -> Firewall -> NAT for the list.
 # [REQUIRED] Create DHCP clients for both interfaces manually and test if they get the gateway IPs
-# [REQUIRED] Enable logs by adding 'script' and 'dhcp' topics in System -> Logging
+# [OPTIONAL] Enable logs by adding 'script' and 'dhcp' topics in System -> Logging
 
 # [OPTIONAL] Update the monitoring IPs. They MUST BE DIFFERENT. For example, 8.8.8.8 for WAN1 and 8.8.4.4 WAN2
 :local wan1MonIp "8.8.8.8"; #WAN1 monitoring IP
@@ -54,7 +54,7 @@
 #--- WAN2 DHCP script end
 
 
-:log info ("PVZ: Removing existing routes with comments '" . $wan1MonRouteComment. "' and '" .$wan2MonRouteComment. "'...")
+:log info ("PVZ: Removing existing monitoring routes '" . $wan1MonRouteComment. "' and '" .$wan2MonRouteComment. "'...")
 /ip route remove ([/ip route find comment~("^" . $wan1MonRouteComment)])
 /ip route remove ([/ip route find comment~("^" . $wan2MonRouteComment)])
 
@@ -70,6 +70,10 @@ add dst-address=$wan2MonIp comment=$wan2MonRouteComment scope=10
     /ip dhcp-client disable $dhcpId
     /ip dhcp-client enable $dhcpId
 }
+
+:log info ("PVZ: Removing existing default routes...")
+/ip route remove ([/ip route find gateway=$wan1MonIp])
+/ip route remove ([/ip route find gateway=$wan2MonIp])
 
 :log info ("PVZ: Adding default recursive routes...")
 /ip/route/
