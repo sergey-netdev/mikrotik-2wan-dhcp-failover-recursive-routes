@@ -6,6 +6,7 @@ This page complements (2-WAN failover setup)[2-wan-dhcp-failover-rec-route] and 
 The idea is that a router monitors its WAN interfaces and notifies the monitoring server over the private monitoring WG tunnel.
 First we need to create a push monitor in Uptime Kuma via its web interface:
 
+<p><img src="screenshot-uptimekuma-01.png" alt="Uptime Kuma: Add push monitor" width="80%"/></p>
 
 In this example, we create 2 scripts we later will use in Mikrotik's Netwatch.
 
